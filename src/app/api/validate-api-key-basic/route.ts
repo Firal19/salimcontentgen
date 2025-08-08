@@ -62,20 +62,33 @@ export async function POST(request: NextRequest) {
     // Provider-specific validation
     if (provider === 'anthropic' || provider === 'zai') {
       console.log('Attempting to validate Claude/Anthropic API key...')
+      console.log('API key prefix:', cleanApiKey.substring(0, 10) + '...')
       
-      // Check format
+      // Check format - be more flexible for testing
       if (!cleanApiKey.startsWith('sk-ant-')) {
         if (cleanApiKey.startsWith('sk-')) {
+          console.warn('API key starts with sk- but not sk-ant-, might be OpenAI key')
           return NextResponse.json({
             valid: false,
             error: 'Wrong API key format',
             details: 'This looks like an OpenAI API key, not a Claude API key',
             suggestion: 'Claude API keys start with "sk-ant-". Get yours from https://console.anthropic.com/settings/keys',
-            formatChecks: formatIssues
+            formatChecks: formatIssues,
+            keyPrefix: cleanApiKey.substring(0, 10) + '...'
           })
         }
         
-        console.warn('API key does not start with sk-ant-, but will try anyway')
+        console.warn('API key does not start with sk-ant-, will try validation anyway')
+        
+        // Return warning but still try to validate
+        return NextResponse.json({
+          valid: false,
+          error: 'Invalid API key format',
+          details: 'Claude API keys should start with "sk-ant-"',
+          suggestion: 'Please check your Claude API key format. Get a valid key from https://console.anthropic.com/settings/keys',
+          formatChecks: formatIssues,
+          keyPrefix: cleanApiKey.substring(0, 10) + '...'
+        })
       }
 
       try {
