@@ -1,0 +1,210 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  settings         UserSettings?
+  quotes           Quote[]
+  backgrounds      Background[]
+  musicTracks      MusicTrack[]
+  videos           Video[]
+  socialPosts      SocialPost[]
+  workflows        Workflow[]
+}
+
+model UserSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // API Keys
+  zaiApiKey            String?
+  openaiApiKey         String?
+  stabilityApiKey      String?
+  elevenLabsApiKey     String?
+  runwayApiKey         String?
+  replicateApiKey      String?
+  googleDriveApiKey    String?
+  
+  // Storage Settings
+  storageProvider      String   @default("local") // local, google_drive
+  storagePath          String?
+  ffmpegPath           String?
+  
+  // Preferences
+  defaultQuoteType     String   @default("philosophical") // philosophical, life_psychology, mixed
+  defaultPromptStyle   String   @default("balanced") // analytical, creative, balanced
+  defaultVideoQuality  String   @default("medium") // low, medium, high
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Quote {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  content         String
+  philosopher     String?  // Seneca, Marcus Aurelius, etc.
+  quoteType       String   // philosophical, life_psychology, mixed
+  promptStyle     String   // analytical, creative, balanced
+  theme           String?
+  approved        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  videos          Video[]
+  socialPosts     SocialPost[]
+}
+
+model Background {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name            String
+  type            String   // preset, uploaded, ai_generated
+  category        String?  // nature, abstract, minimal, vintage
+  filePath        String
+  fileSize        Int?
+  mimeType        String?
+  aiProvider      String?  // zai, openai, stability, replicate
+  prompt          String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  videos          Video[]
+}
+
+model MusicTrack {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name            String
+  type            String   // preset, uploaded, ai_generated
+  filePath        String
+  fileSize        Int?
+  mimeType        String?
+  duration        Int?     // in seconds
+  genre           String?
+  mood            String?
+  aiProvider      String?  // elevenlabs, replicate, openai, suno
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  videos          Video[]
+}
+
+model Video {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  quoteId         String?
+  quote           Quote?   @relation(fields: [quoteId], references: [id])
+  backgroundId    String?
+  background      Background? @relation(fields: [backgroundId], references: [id])
+  musicTrackId    String?
+  musicTrack      MusicTrack? @relation(fields: [musicTrackId], references: [id])
+  
+  title           String
+  filePath        String?
+  fileSize        Int?
+  duration        Int?     // in seconds
+  quality         String   @default("medium") // low, medium, high
+  resolution      String?  // 480p, 720p, 1080p
+  aiProvider      String?  // runway, pika, heygen, synthesia
+  
+  status          String   @default("pending") // pending, processing, completed, failed
+  errorMessage    String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  socialPosts     SocialPost[]
+  workflows       Workflow[]
+}
+
+model SocialPost {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  videoId         String?
+  video           Video?   @relation(fields: [videoId], references: [id])
+  quoteId         String?
+  quote           Quote?   @relation(fields: [quoteId], references: [id])
+  
+  platform        String   // tiktok, telegram, instagram, youtube, facebook, x
+  status          String   @default("draft") // draft, scheduled, posted, failed
+  
+  // Scheduling
+  scheduledAt     DateTime?
+  postedAt        DateTime?
+  frequency       String?  // daily, weekly, custom
+  customInterval  Int?     // days
+  timezone        String   @default("UTC")
+  
+  // Content
+  caption         String?
+  hashtags        String?
+  includeQuote    Boolean  @default(true)
+  includeCredits  Boolean  @default(true)
+  
+  // Platform-specific config
+  platformConfig  Json?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Workflow {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  videoId         String?
+  video           Video?   @relation(fields: [videoId], references: [id])
+  
+  type            String   // quote_generation, background_creation, music_composition, video_production
+  status          String   @default("pending") // pending, processing, completed, failed
+  
+  // Configuration
+  config          Json
+  result          Json?
+  errorMessage    String?
+  
+  // Progress tracking
+  currentStep     Int      @default(0)
+  totalSteps      Int      @default(1)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
